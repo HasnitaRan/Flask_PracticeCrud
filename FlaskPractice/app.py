@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, url_for, render_template, jsonify
+from flask import Flask, abort, request, redirect, url_for, render_template, jsonify
 from models import db,WasteBankModel
 app = Flask(__name__)
 
@@ -16,23 +16,47 @@ def create():
         return render_template('create.html')
     
     if request.method == 'POST':
-        nama = request.form['nama']
-        jenis = request.form['jenis']
-        harga = request.form['harga']
+        data = request.get_json()
+        # nama = request.form['nama']
+        # jenis = request.form['jenis']
+        # harga = request.form['harga']
+        if data:
+            nama = data.form['nama']
+            jenis = data.form['jenis']
+            harga = data.form['harga']
         
-    wastebank = WasteBankModel(
-        nama = nama,
-        jenis = jenis,
-        harga = harga
-    )    
-    db.session.add(wastebank)
-    db.session.commit()
-    return redirect('/home')
+            if nama and jenis and harga:    
+                wastebank = WasteBankModel(
+                    nama = nama,
+                    jenis = jenis,
+                    harga = harga
+                )    
+                db.session.add(wastebank)
+                db.session.commit()
+                # return redirect('/')
+                return jsonify(message="Data telah berhasil ditambahkan"), 201  # 201 Created status code
+        else:
+                return jsonify(error="Data tidak lengkap"), 400  # 400 Bad Request status code
+    else:
+        return jsonify(error="Format JSON tidak valid"), 400  # 400 Bad Request status code
 
-@app.route('/home', methods = ['GET'])    
+        return jsonify(error="Metode HTTP yang tidak valid"), 405  # 405 Method Not Allowed status code
+
+@app.route('/', methods = ['GET'])    
 def RetrieveList():
     wastebank =WasteBankModel.query.all()
-    return render_template ('index.html', wastebank = wastebank)
+    # return render_template ('index.html', wastebank = wastebank)
+    wastebank_json = [{"id": wastebank.id, "nama": wastebank.nama, "jenis": wastebank.jenis} for wastebank in wastebank]
+    return jsonify(wastebank=wastebank_json)
+
+@app.route('/<int:id>', methods=['GET'])
+def RetrieveById(id):
+    wastebank = WasteBankModel.query.get(id)
+    if wastebank:
+        wastebank_json = {"id": wastebank.id, "nama": wastebank.nama, "jenis": wastebank.jenis}
+        return jsonify(wastebank=wastebank_json)
+    else:
+        return jsonify(error="Data tidak ditemukan"), 404
 
 
 @app.route('/<int:id>/edit',methods = ['GET','POST'])
